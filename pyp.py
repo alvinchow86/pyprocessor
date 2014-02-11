@@ -4,7 +4,6 @@ import traceback
 import os
 import re
 
-#from optparse import OptionParser
 import argparse
 from argparse import ArgumentParser
 
@@ -20,15 +19,12 @@ __version__ = "0.12"
 
 from string import Template
 
-
 # Turns " to \", and ' to \'
 def escape_quotes(string):
-    #return string.replace('"','\"')
     return string.replace("\\","\\\\").replace("'",r"\'").replace('"',r'\"')
 
 def escape_percent(string):
     return string.replace("%","%%")
-
 
 class PythonLine:
     INDENT = "    "
@@ -40,9 +36,6 @@ class PythonLine:
 
     def __str__(self):
         return self.string
-
-#    def add_indent(self):
-#        self.indent_levels += 1
 
     # if "noindent" set, this method doesn't do anything
     def set_indent(self, indent_level):
@@ -75,11 +68,9 @@ class ParseError(Exception):
         return "\n".join(msgs)
 
 
-
 class PythonSequence:
     """
     curr_node_list: keeps track of where new nodes (possibly blocks) go into
-
     """
     EXPR_REGEX = re.compile(r"\${(?P<inner>.*?)}", re.DOTALL)
 
@@ -110,17 +101,10 @@ class PythonSequence:
     control_start_string = "\s*%\s*(({key}).*:)".format(key=keywords_regex_chunk)
     control_end_string = "\s*%\s*end({key})".format(key=keywords_regex_chunk)
     control_middle_string = "\s*%\s*(({key}).*:)".format(key="|".join(middle_keywords))
-    #print control_start_string
-    #print control_end_string
-    #print control_middle_string
 
     CONTROL_START_REGEX = re.compile(control_start_string)
     CONTROL_MIDDLE_REGEX = re.compile(control_middle_string)
     CONTROL_END_REGEX = re.compile(control_end_string)
-
-    #control_start_regex = re.compile("\s*%\s*((for|if|while|try|def|pypdef).*:)")
-    #CONTROL_MIDDLE_REGEX = re.compile("\s*%\s*((elif|else|except).*:)")
-    #control_end_regex = re.compile("\s*%\s*end(for|if|while|try|def|pypdef)")
 
     NORMAL_PYTHON_LINE_REGEX = re.compile("\s*%\s*(.*)")
 
@@ -184,12 +168,9 @@ class PythonSequence:
                 if (triples % 2 != 0 ):
                     in_triplequotes_next = not in_triplequotes_next
 
-                    #print 'SWITCH TRIPLE', in_triplequotes_next
-                    #print line
                 noindent = in_triplequotes
 
                 compound_block.append((PythonLine(line, noindent=in_triplequotes), linenum))
-                #print line, in_triplequotes
 
                 # don't calculate min spaces if a line is empty
                 # (or if it's a # comment)
@@ -206,7 +187,6 @@ class PythonSequence:
         for (pythonline, linenum) in compound_block:
             if not pythonline.noindent:
                 pythonline.string = re.sub("\s{%s}" % min_spaces,'', pythonline.string,count=1)
-#            python_line = PythonLine(fixed_line)
             compound_block_fixed.append((pythonline, linenum))
 
         return compound_block_fixed
@@ -215,14 +195,11 @@ class PythonSequence:
     def parse_lines(self, lines):
 
         compound_python_block = []
-        #SPACE_REGEX = re.compile("(\s*)")
 
         DUMMYTEXT_REGEX = re.compile("%s\s*$" % self.DUMMYTEXT)
-        #SPACE_COMMENT_REGEX  = re.compile("(\s*$)|(\s*#)")
 
         while lines:
             (line, linenum) = lines.pop(0)
-            #print line
 
             if self.PYP_COMMENT_REGEX.match(line) or DUMMYTEXT_REGEX.match(line):
                 continue
@@ -241,21 +218,16 @@ class PythonSequence:
 
                 continue
 
-
             # Main control word ("for","if","try", "while")
             m = self.CONTROL_START_REGEX.match(line)
             if m:
-                #self.incr_linenum(linenum)
-                #self.python_line_map[self.python_linenum] = linenum
                 self.update_python_linemap(linenum)
-                #self.python_linenum += 1
                 control_statement = m.group(1)
                 control_word = m.group(2)
 
                 is_pypdef = isinstance(self, PythonIndentedSequence) and self.pypdef
                 if (control_word =="pypdef"):
                     is_pypdef = True
-                    #control_word = "def"
                     control_statement = control_statement.replace("pypdef","def",1)
 
                 control_statement = PythonLine(control_statement)
@@ -268,12 +240,8 @@ class PythonSequence:
 
                 if is_pypdef and (control_word =="pypdef"):
                     new_block.add_node(PythonLine("_OUTPUT=[]"))   #only add this start very start of pypdef, not a nested block
-                    #new_block.python_linenum += 1
 
                 new_block.parse_lines(lines)
-
-
-                #self.add_new_control_sequence(
 
                 self.add_node(new_block)
                 self.python_linenum = new_block.python_linenum    # advance line num of current sequence
@@ -285,8 +253,6 @@ class PythonSequence:
             m = self.CONTROL_MIDDLE_REGEX.match(line)
             if m:
                 self.map_increment_linenum(linenum)
-#                self.python_line_map[self.python_linenum] = linenum
-#                self.python_linenum += 1
                 control_statement = PythonLine(m.group(1))
                 control_word = m.group(2)
 
@@ -313,7 +279,6 @@ class PythonSequence:
 
                 if end_control_word == "pypdef":
                     self.add_node(PythonLine(r"return '\n'.join(_OUTPUT)"))
-                    #self.python_linenum += 1
 
                 if self.control_word == None:
                     raise ParseError("Found end control word (end%s) without starting word" % end_control_word, line, linenum)
@@ -394,7 +359,6 @@ class PythonSequence:
         exprs = self.EXPR_REGEX.findall(line)
 
         print_func = "_OUTPUT.append" if self.pypdef else "_PRINT"
-        #print_func = self.print_func()
 
         if exprs:
             print_string = line
@@ -404,26 +368,18 @@ class PythonSequence:
 
             print_string = escape_quotes(print_string)
 
-
             # Get a list of the original expressions, clean them up
             exprs_cleaned = []
             for expr in exprs:
                 expr_cleaned = expr.replace("${","").replace("}","")
                 exprs_cleaned.append(expr_cleaned)
 
-            #exprs_bundled = ["(%s)" % expr for expr in exprs_cleaned]
-
             parens_statement = ("'%s'" % print_string) + " % " + "(%s,)" % \
                 (",".join(["(%s)" % expr for expr in exprs_cleaned]))
-
-            #parens_statement = "'{print_string}' % ({exprs})".format( print_string=print_string,
-            #        exprs=",".join(["(%s)" % expr for expr in exprs_cleaned]))
-
 
         else:
             line = escape_quotes(line)
             parens_statement = "('%s')" % line
-
 
         python_line = "%s(%s)" % (print_func, parens_statement)
         return python_line
@@ -472,8 +428,6 @@ class PythonIndentedSequence(PythonSequence):
         return lines
 
 class PYPParser():
-    # global bloop
-
 
     def __init__(self, text, debug=False, input_filename=None):
         self.debug = debug
@@ -484,7 +438,6 @@ class PYPParser():
 
         # Save text lines with line numbers (line, lineno). Start line numbering at 1
         self.textlines = zip(textlines, [1+x for x in range(len(textlines))])
-        #self.textlines = textlines
 
         self.python_line_map = {}
         self.input_filename = input_filename
@@ -501,12 +454,7 @@ class PYPParser():
 
         newtext = PythonSequence.EXPR_REGEX.sub(replace_func, text)
 
-        #print newtext
-
         return newtext
-
-#    def process_error(self):
-#        cla, exc_value, tb = sys.exc_info()
 
     def _get_pyp_errorline(self, error_linenum):
         if error_linenum in self.python_line_map:
@@ -523,15 +471,12 @@ class PYPParser():
         else:
             pyfile = open(filename,'w')
 
-        #print filename
-
         pyfile.write(script_text)
         pyfile.flush()
 
         if self.debug:
             print "Python executable:", pyfile.name
         dir = os.path.dirname( pyfile.name)
-        #print dir
         sys.path.append(dir)
 
         modname = os.path.split(pyfile.name)[1].replace('.py','')
@@ -545,7 +490,6 @@ class PYPParser():
 
         def _PRINT(line):
             output.write(line + "\n")
-#            exec 'print "%s"' % line
 
         # Use this to try to figure out which traceback message matches the input PYP file
         tb_regex = re.compile('.*%s.*line (\d+)' % pyfile.name)
@@ -628,16 +572,12 @@ class PYPParser():
 
             print "==================================="
 
-
-#        output.flush()
         output.close()
         if output_filename:
             if success:
                 os.rename(temp_outputname, output_filename)
             else:
                 os.remove(temp_outputname)
-
-        #os.system("python %s" % pyfile.name)
 
     def gen_python_script(self):
         pass
@@ -660,11 +600,7 @@ class PYPParser():
             print
             sys.exit(1)
 
-
-
         self.python_line_map = sequence.python_line_map
-#        if self.debug:    pp.pprint(self.python_line_map)
-
 
         python_text = sequence.get_python_text()
         if self.debug:
@@ -712,11 +648,6 @@ def main():
     pypparser.execute(output_filename=options.output_filename,
                                  python_filename=options.python_filename)
 
-#    return sequence
-
 
 if __name__ == "__main__":
     main()
-
-    #sequence = main()
-    #print sequence
